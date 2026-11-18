@@ -1,0 +1,44 @@
+# Run with: uv run prek install   (prek is a fast drop-in runner for pre-commit configs)
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c # v6.0.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-toml
+      - id: check-yaml
+        args: [--unsafe]
+      - id: end-of-file-fixer
+        exclude: ^frontend/src/(client/.*|routeTree\.gen\.ts)$
+      - id: trailing-whitespace
+        exclude: ^frontend/src/(client/.*|routeTree\.gen\.ts)$
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks
+  - repo: local
+    hooks:
+      - id: biome-check
+        name: biome check
+        entry: yarn workspace frontend lint
+        language: system
+        pass_filenames: false
+        files: ^frontend/
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check --force-exclude --fix --exit-non-zero-on-fix
+        require_serial: true
+        language: system
+        types: [python]
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format --force-exclude --exit-non-zero-on-format
+        require_serial: true
+        language: system
+        types: [python]
+      - id: mypy
+        name: mypy
+        entry: bash -c 'cd backend && uv run mypy app'
+        require_serial: true
+        language: system
+        pass_filenames: false
+        files: ^backend/

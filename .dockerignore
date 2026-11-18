@@ -1,0 +1,13 @@
+.git
+.env
+.env.*
+**/__pycache__
+**/.venv
+**/.mypy_cache
+**/.ruff_cache
+**/.pytest_cache
+backend/htmlcov
+frontend/dist
+**/node_modules
+.yarn/cache
+.yarn/install-state.gz

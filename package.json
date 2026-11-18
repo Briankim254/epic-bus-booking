@@ -1,0 +1,14 @@
+{
+  "name": "epic-booking",
+  "private": true,
+  "workspaces": [
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "yarn workspace frontend dev",
+    "build": "yarn workspace frontend build",
+    "lint": "yarn workspace frontend lint",
+    "generate-client": "bash scripts/generate-client.sh"
+  },
+  "packageManager": "yarn@4.18.1"
+}

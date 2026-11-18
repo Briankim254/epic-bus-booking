@@ -1,0 +1,89 @@
+# Local development stack. Run: cp .env.example .env && docker compose up --build
+#   web      http://localhost:5173
+#   api      http://localhost:8000/docs
+#   adminer  http://localhost:8080   (server: db, user: postgres)
+# Reset and reseed: docker compose down -v && docker compose up -d --build
+
+x-backend-env: &backend-env
+  PROJECT_NAME: ${PROJECT_NAME:-EPIC Booking}
+  ENVIRONMENT: ${ENVIRONMENT:-local}
+  DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?Variable not set}@db:5432/${POSTGRES_DB:-app}
+  FRONTEND_HOST: ${FRONTEND_HOST:-http://localhost:5173}
+  BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-}
+
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Variable not set}
+      POSTGRES_DB: ${POSTGRES_DB:-app}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    volumes:
+      - app-db-data:/var/lib/postgresql
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+
+  adminer:
+    image: adminer
+    depends_on:
+      - db
+    ports:
+      - "8080:8080"
+
+  prestart:
+    image: epic-booking-backend:latest
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment: *backend-env
+    command: bash scripts/prestart.sh
+
+  backend:
+    image: epic-booking-backend:latest
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+        restart: true
+      prestart:
+        condition: service_completed_successfully
+    environment: *backend-env
+    command: ["fastapi", "dev", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      # Live reload: `fastapi dev` watches this bind mount. Rebuild after dependency changes.
+      - ./backend/app:/app/backend/app
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    depends_on:
+      - backend
+    environment:
+      VITE_API_URL: http://localhost:8000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend/src:/app/frontend/src
+      - ./frontend/public:/app/frontend/public
+
+volumes:
+  app-db-data:
