@@ -5,6 +5,219 @@ export type ClientOptions = {
 };
 
 /**
+ * BookingIn
+ */
+export type BookingIn = {
+    /**
+     * Trip Id
+     */
+    trip_id: string;
+    /**
+     * Passenger Name
+     */
+    passenger_name: string;
+    /**
+     * Seats
+     */
+    seats: number;
+};
+
+/**
+ * BookingOut
+ */
+export type BookingOut = {
+    /**
+     * Reference
+     */
+    reference: string;
+    trip: TripOut;
+    /**
+     * Passenger Name
+     */
+    passenger_name: string;
+    /**
+     * Seats
+     */
+    seats: number;
+    /**
+     * Fare Cents Per Seat
+     */
+    fare_cents_per_seat: number;
+    /**
+     * Total Cents
+     */
+    total_cents: number;
+    /**
+     * Created At
+     */
+    created_at: string;
+};
+
+/**
+ * BusAssignIn
+ */
+export type BusAssignIn = {
+    /**
+     * Bus Id
+     */
+    bus_id: number;
+};
+
+/**
+ * BusIn
+ */
+export type BusIn = {
+    /**
+     * Plate Number
+     */
+    plate_number: string;
+    /**
+     * Name
+     */
+    name?: string | null;
+    /**
+     * Capacity
+     */
+    capacity: number;
+};
+
+/**
+ * BusOut
+ */
+export type BusOut = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Plate Number
+     */
+    plate_number: string;
+    /**
+     * Name
+     */
+    name: string | null;
+    /**
+     * Capacity
+     */
+    capacity: number;
+    /**
+     * Active
+     */
+    active: boolean;
+};
+
+/**
+ * BusPatch
+ *
+ * Only the fields sent are changed. The plate number is the bus's identity: fixed.
+ */
+export type BusPatch = {
+    /**
+     * Name
+     */
+    name?: string | null;
+    /**
+     * Capacity
+     */
+    capacity?: number | null;
+    /**
+     * Active
+     */
+    active?: boolean | null;
+};
+
+/**
+ * BusRef
+ */
+export type BusRef = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Plate Number
+     */
+    plate_number: string;
+    /**
+     * Name
+     */
+    name: string | null;
+};
+
+/**
+ * DriftItem
+ */
+export type DriftItem = {
+    /**
+     * Trip Id
+     */
+    trip_id: string;
+    /**
+     * Counter
+     */
+    counter: number;
+    /**
+     * Actual
+     */
+    actual: number;
+};
+
+/**
+ * DriftReport
+ */
+export type DriftReport = {
+    /**
+     * Checked At
+     */
+    checked_at: string;
+    /**
+     * Drifted
+     */
+    drifted: Array<DriftItem>;
+};
+
+/**
+ * FareQuote
+ */
+export type FareQuote = {
+    origin: TownOut;
+    destination: TownOut;
+    /**
+     * Fare Cents
+     */
+    fare_cents: number;
+    /**
+     * Currency
+     */
+    currency?: 'USD';
+};
+
+/**
+ * FieldError
+ */
+export type FieldError = {
+    /**
+     * Field
+     */
+    field: string;
+    /**
+     * Message
+     */
+    message: string;
+};
+
+/**
+ * HTTPValidationError
+ */
+export type HTTPValidationError = {
+    /**
+     * Detail
+     */
+    detail?: Array<ValidationError>;
+};
+
+/**
  * HealthOut
  */
 export type HealthOut = {
@@ -12,6 +225,167 @@ export type HealthOut = {
      * Status
      */
     status: string;
+};
+
+/**
+ * Problem
+ */
+export type Problem = {
+    /**
+     * Type
+     */
+    type: string;
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Status
+     */
+    status: number;
+    /**
+     * Detail
+     */
+    detail?: string | null;
+    /**
+     * Instance
+     */
+    instance?: string | null;
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Request Id
+     */
+    request_id?: string | null;
+    /**
+     * Errors
+     */
+    errors?: Array<FieldError> | null;
+    [key: string]: unknown;
+};
+
+/**
+ * TownOut
+ */
+export type TownOut = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Zone Id
+     */
+    zone_id: number;
+};
+
+/**
+ * TransitionIn
+ */
+export type TransitionIn = {
+    to_status: TripStatus;
+};
+
+/**
+ * TripOut
+ */
+export type TripOut = {
+    /**
+     * Id
+     */
+    id: string;
+    origin: TownOut;
+    destination: TownOut;
+    bus: BusRef;
+    /**
+     * Departs At
+     *
+     * UTC, ISO 8601
+     */
+    departs_at: string;
+    status: TripStatus;
+    /**
+     * Capacity
+     */
+    capacity: number;
+    /**
+     * Seats Booked
+     */
+    seats_booked: number;
+    /**
+     * Seats Available
+     */
+    seats_available: number;
+    /**
+     * Fare Cents
+     *
+     * Per seat, US cents
+     */
+    fare_cents: number;
+    /**
+     * Currency
+     */
+    currency?: 'USD';
+};
+
+/**
+ * TripPage
+ */
+export type TripPage = {
+    /**
+     * Items
+     */
+    items: Array<TripOut>;
+    /**
+     * Total
+     */
+    total: number;
+    /**
+     * Limit
+     */
+    limit: number;
+    /**
+     * Offset
+     */
+    offset: number;
+};
+
+/**
+ * TripStatus
+ */
+export type TripStatus = 'scheduled' | 'boarding' | 'departed' | 'in_transit' | 'arrived' | 'completed';
+
+/**
+ * ValidationError
+ */
+export type ValidationError = {
+    /**
+     * Location
+     */
+    loc: Array<string | number>;
+    /**
+     * Message
+     */
+    msg: string;
+    /**
+     * Error Type
+     */
+    type: string;
+    /**
+     * Input
+     */
+    input?: unknown;
+    /**
+     * Context
+     */
+    ctx?: {
+        [key: string]: unknown;
+    };
 };
 
 export type healthHealthCheckData = {
@@ -29,3 +403,429 @@ export type healthHealthCheckResponses = {
 };
 
 export type healthHealthCheckResponse = healthHealthCheckResponses[keyof healthHealthCheckResponses];
+
+export type townsListTownsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/towns';
+};
+
+export type townsListTownsResponses = {
+    /**
+     * Response Towns-List Towns
+     *
+     * Successful Response
+     */
+    200: Array<TownOut>;
+};
+
+export type townsListTownsResponse = townsListTownsResponses[keyof townsListTownsResponses];
+
+export type faresQuoteFareData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Origin Town Id
+         */
+        origin_town_id: number;
+        /**
+         * Destination Town Id
+         */
+        destination_town_id: number;
+    };
+    url: '/api/v1/fares/quote';
+};
+
+export type faresQuoteFareErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Invalid request
+     */
+    422: unknown;
+};
+
+export type faresQuoteFareResponses = {
+    /**
+     * Successful Response
+     */
+    200: FareQuote;
+};
+
+export type faresQuoteFareResponse = faresQuoteFareResponses[keyof faresQuoteFareResponses];
+
+export type tripsSearchTripsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Origin Town Id
+         */
+        origin_town_id?: number | null;
+        /**
+         * Destination Town Id
+         */
+        destination_town_id?: number | null;
+        /**
+         * Date
+         *
+         * Calendar day in Africa/Lagos (YYYY-MM-DD)
+         */
+        date?: string | null;
+        /**
+         * Sort
+         */
+        sort?: 'departs_at' | '-departs_at' | 'price' | '-price';
+        /**
+         * Limit
+         */
+        limit?: number;
+        /**
+         * Offset
+         */
+        offset?: number;
+    };
+    url: '/api/v1/trips';
+};
+
+export type tripsSearchTripsErrors = {
+    /**
+     * Invalid request
+     */
+    422: unknown;
+};
+
+export type tripsSearchTripsResponses = {
+    /**
+     * Successful Response
+     */
+    200: TripPage;
+};
+
+export type tripsSearchTripsResponse = tripsSearchTripsResponses[keyof tripsSearchTripsResponses];
+
+export type tripsGetTripData = {
+    body?: never;
+    path: {
+        /**
+         * Trip Id
+         */
+        trip_id: string;
+    };
+    query?: never;
+    url: '/api/v1/trips/{trip_id}';
+};
+
+export type tripsGetTripErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type tripsGetTripError = tripsGetTripErrors[keyof tripsGetTripErrors];
+
+export type tripsGetTripResponses = {
+    /**
+     * Successful Response
+     */
+    200: TripOut;
+};
+
+export type tripsGetTripResponse = tripsGetTripResponses[keyof tripsGetTripResponses];
+
+export type bookingsCreateBookingData = {
+    body: BookingIn;
+    headers?: {
+        /**
+         * Idempotency-Key
+         *
+         * Send a fresh UUID per booking attempt; a retry with the same key returns the original booking instead of booking twice.
+         */
+        'Idempotency-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/bookings';
+};
+
+export type bookingsCreateBookingErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Conflict with the current state
+     */
+    409: unknown;
+    /**
+     * Invalid request
+     */
+    422: unknown;
+};
+
+export type bookingsCreateBookingResponses = {
+    /**
+     * Successful Response
+     */
+    201: BookingOut;
+};
+
+export type bookingsCreateBookingResponse = bookingsCreateBookingResponses[keyof bookingsCreateBookingResponses];
+
+export type bookingsGetBookingData = {
+    body?: never;
+    path: {
+        /**
+         * Reference
+         */
+        reference: string;
+    };
+    query?: never;
+    url: '/api/v1/bookings/{reference}';
+};
+
+export type bookingsGetBookingErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type bookingsGetBookingError = bookingsGetBookingErrors[keyof bookingsGetBookingErrors];
+
+export type bookingsGetBookingResponses = {
+    /**
+     * Successful Response
+     */
+    200: BookingOut;
+};
+
+export type bookingsGetBookingResponse = bookingsGetBookingResponses[keyof bookingsGetBookingResponses];
+
+export type adminAdminSearchTripsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Origin Town Id
+         */
+        origin_town_id?: number | null;
+        /**
+         * Destination Town Id
+         */
+        destination_town_id?: number | null;
+        /**
+         * Date
+         *
+         * Calendar day in Africa/Lagos (YYYY-MM-DD)
+         */
+        date?: string | null;
+        /**
+         * Sort
+         */
+        sort?: 'departs_at' | '-departs_at' | 'price' | '-price';
+        /**
+         * Limit
+         */
+        limit?: number;
+        /**
+         * Offset
+         */
+        offset?: number;
+    };
+    url: '/api/v1/admin/trips';
+};
+
+export type adminAdminSearchTripsErrors = {
+    /**
+     * Invalid request
+     */
+    422: unknown;
+};
+
+export type adminAdminSearchTripsResponses = {
+    /**
+     * Successful Response
+     */
+    200: TripPage;
+};
+
+export type adminAdminSearchTripsResponse = adminAdminSearchTripsResponses[keyof adminAdminSearchTripsResponses];
+
+export type adminTransitionTripData = {
+    body: TransitionIn;
+    path: {
+        /**
+         * Trip Id
+         */
+        trip_id: string;
+    };
+    query?: never;
+    url: '/api/v1/admin/trips/{trip_id}/transitions';
+};
+
+export type adminTransitionTripErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Conflict with the current state
+     */
+    409: unknown;
+    /**
+     * Invalid request
+     */
+    422: unknown;
+};
+
+export type adminTransitionTripResponses = {
+    /**
+     * Successful Response
+     */
+    200: TripOut;
+};
+
+export type adminTransitionTripResponse = adminTransitionTripResponses[keyof adminTransitionTripResponses];
+
+export type adminAssignBusData = {
+    body: BusAssignIn;
+    path: {
+        /**
+         * Trip Id
+         */
+        trip_id: string;
+    };
+    query?: never;
+    url: '/api/v1/admin/trips/{trip_id}/bus';
+};
+
+export type adminAssignBusErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Conflict with the current state
+     */
+    409: unknown;
+    /**
+     * Invalid request
+     */
+    422: unknown;
+};
+
+export type adminAssignBusResponses = {
+    /**
+     * Successful Response
+     */
+    200: TripOut;
+};
+
+export type adminAssignBusResponse = adminAssignBusResponses[keyof adminAssignBusResponses];
+
+export type adminGetReconciliationData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/reconciliation';
+};
+
+export type adminGetReconciliationResponses = {
+    /**
+     * Successful Response
+     */
+    200: DriftReport;
+};
+
+export type adminGetReconciliationResponse = adminGetReconciliationResponses[keyof adminGetReconciliationResponses];
+
+export type adminListBusesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/buses';
+};
+
+export type adminListBusesResponses = {
+    /**
+     * Response Admin-List Buses
+     *
+     * Successful Response
+     */
+    200: Array<BusOut>;
+};
+
+export type adminListBusesResponse = adminListBusesResponses[keyof adminListBusesResponses];
+
+export type adminCreateBusData = {
+    body: BusIn;
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/buses';
+};
+
+export type adminCreateBusErrors = {
+    /**
+     * Conflict with the current state
+     */
+    409: unknown;
+    /**
+     * Invalid request
+     */
+    422: unknown;
+};
+
+export type adminCreateBusResponses = {
+    /**
+     * Successful Response
+     */
+    201: BusOut;
+};
+
+export type adminCreateBusResponse = adminCreateBusResponses[keyof adminCreateBusResponses];
+
+export type adminUpdateBusData = {
+    body: BusPatch;
+    path: {
+        /**
+         * Bus Id
+         */
+        bus_id: number;
+    };
+    query?: never;
+    url: '/api/v1/admin/buses/{bus_id}';
+};
+
+export type adminUpdateBusErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Invalid request
+     */
+    422: unknown;
+};
+
+export type adminUpdateBusResponses = {
+    /**
+     * Successful Response
+     */
+    200: BusOut;
+};
+
+export type adminUpdateBusResponse = adminUpdateBusResponses[keyof adminUpdateBusResponses];

@@ -4,8 +4,21 @@ from starlette.middleware.cors import CORSMiddleware
 
 from app.api.main import api_router
 from app.core.config import settings
-from app.core.errors import register_exception_handlers
+from app.core.errors import UnhandledErrorMiddleware, register_exception_handlers
 from app.core.logging import REQUEST_ID_HEADER, RequestIdMiddleware, configure_logging
+
+OPENAPI_TAGS = [
+    {"name": "towns", "description": "The six towns and their fare zones"},
+    {"name": "fares", "description": "Price a journey"},
+    {"name": "trips", "description": "Search bookable trips"},
+    {"name": "bookings", "description": "Book seats and look up a booking"},
+    {
+        "name": "admin",
+        "description": "Trusted-only: unauthenticated by design, per the brief. "
+        "In production this sits behind OIDC with an admin role and is not public.",
+    },
+    {"name": "health", "description": "Liveness and database check"},
+]
 
 
 def custom_generate_unique_id(route: APIRoute) -> str:
@@ -19,7 +32,11 @@ def create_app() -> FastAPI:
         title=settings.PROJECT_NAME,
         openapi_url=f"{settings.API_V1_STR}/openapi.json",
         generate_unique_id_function=custom_generate_unique_id,
+        openapi_tags=OPENAPI_TAGS,
     )
+    # Starlette wraps each new middleware around the previous ones: the last added is
+    # outermost. Order from the outside in: RequestId -> CORS -> UnhandledError -> app.
+    app.add_middleware(UnhandledErrorMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.all_cors_origins,

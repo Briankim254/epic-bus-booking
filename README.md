@@ -46,29 +46,66 @@ docker compose exec backend python -m app.cli reconcile
 
 ## Run the tests
 
+Tests use a separate `app_test` database. Add `TEST_DATABASE_URL` to `.env` with the same user and password as `DATABASE_URL` and the database name `app_test`. The tests create that database if it's missing and migrate it on every run. Without the variable, the database tests are skipped.
+
 ```bash
 docker compose up -d db
 uv sync --all-packages
 cd backend && uv run bash scripts/test.sh
 ```
 
+To check the last-seat race isn't flaky, run it 20 times: `for i in $(seq 20); do uv run pytest -q tests/integration/test_concurrency.py || break; done`
+
 Lint everything: `cd backend && uv run bash scripts/lint.sh` and `yarn lint`.
 
 ## Example: price a journey, book a seat
 
+Run these against a freshly seeded stack. Town ids are fixed: Lagos is 1 and Abuja is 5. The seeded Lagos → Abuja trip has exactly one seat left, so this example also shows the last seat being taken.
 
 ```bash
+# 1. Price the journey. Fares are per seat, in US cents, and depend only on the zones.
+curl -s "localhost:8000/api/v1/fares/quote?origin_town_id=1&destination_town_id=5"
+# {"origin":{"id":1,"name":"Lagos","zone_id":1},"destination":{"id":5,"name":"Abuja","zone_id":3},"fare_cents":2500,"currency":"USD"}
 
+# 2. Search bookable trips. Add &date=YYYY-MM-DD for one calendar day in Lagos.
+curl -s "localhost:8000/api/v1/trips?origin_town_id=1&destination_town_id=5"
+TRIP_ID=$(curl -s "localhost:8000/api/v1/trips?origin_town_id=1&destination_town_id=5" \
+  | python3 -c 'import json,sys; print(json.load(sys.stdin)["items"][0]["id"])')
+
+# 3. Book the last seat. The Idempotency-Key makes a retry safe.
+KEY=$(uuidgen)
+curl -s -X POST localhost:8000/api/v1/bookings \
+  -H 'Content-Type: application/json' -H "Idempotency-Key: $KEY" \
+  -d "{\"trip_id\": \"$TRIP_ID\", \"passenger_name\": \"Ngọzi Okafor\", \"seats\": 1}"
+# 201 {"reference":"BK-7Q2M-K9XD","seats":1,"fare_cents_per_seat":2500,"total_cents":2500,...}
+
+# 4. Retry with the same key (a double click, a dropped connection): same booking, no second seat.
+curl -s -i -X POST localhost:8000/api/v1/bookings \
+  -H 'Content-Type: application/json' -H "Idempotency-Key: $KEY" \
+  -d "{\"trip_id\": \"$TRIP_ID\", \"passenger_name\": \"Ngọzi Okafor\", \"seats\": 1}" \
+  | grep -i '^idempotent-replayed'
+# Idempotent-Replayed: true
+
+# 5. A different customer tries for the same seat.
+curl -s -X POST localhost:8000/api/v1/bookings \
+  -H 'Content-Type: application/json' -H "Idempotency-Key: $(uuidgen)" \
+  -d "{\"trip_id\": \"$TRIP_ID\", \"passenger_name\": \"Musa Ibrahim\", \"seats\": 1}"
+# 409 application/problem+json {"code":"insufficient-seats","remaining":0,"request_id":"...",...}
 ```
+
+Every endpoint, with its request and error schemas, is listed at http://localhost:8000/docs. Run `docker compose exec backend python -m app.cli seed --reset` to put the last seat back.
 
 ## Main entry points
 
 | Area | File |
 |---|---|
 | API app factory | [backend/app/main.py](backend/app/main.py) |
-| Booking transaction | `backend/app/services/booking_service.py` |
-| Fare rules | `backend/app/domain/fares.py` |
-| Trip state machine | `backend/app/domain/trip_status.py` |
+| Booking transaction | [backend/app/services/booking_service.py](backend/app/services/booking_service.py) |
+| Conditional seat update (the overbooking guard) | [backend/app/repositories/trips.py](backend/app/repositories/trips.py) |
+| Fare rules | [backend/app/domain/fares.py](backend/app/domain/fares.py) |
+| Trip state machine | [backend/app/domain/trip_status.py](backend/app/domain/trip_status.py) |
+| Error format (problem+json) | [backend/app/core/errors.py](backend/app/core/errors.py) |
+| Last-seat concurrency tests | [backend/tests/integration/test_concurrency.py](backend/tests/integration/test_concurrency.py) |
 | Customer page | [frontend/src/routes/index.tsx](frontend/src/routes/index.tsx) |
 | Admin table | [frontend/src/routes/admin/trips.tsx](frontend/src/routes/admin/trips.tsx) |
 
