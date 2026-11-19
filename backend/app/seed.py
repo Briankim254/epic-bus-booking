@@ -9,9 +9,10 @@ Run with `python -m app.cli seed` (prestart does this on every start).
 - Trips and bookings are inserted only when `trips` is empty. Pass `--reset` to wipe and
   re-create them.
 - Departure times are relative to now, so there are always future trips to search.
-- Bookings are written while their trip is still `scheduled` and then trips are advanced
-  through the state machine, so departed/arrived trips have bookings and every counter is
-  consistent. The run ends with a reconciliation check and fails loudly on any drift.
+- Bookings go through BookingService, the same code path as the API, with its clock set
+  three days back so trips that have since departed can still take them. Trips are then
+  advanced through TripService, so the state machine and history are exercised too.
+  The run ends with a reconciliation check and fails loudly on any drift.
 """
 
 import logging
@@ -19,14 +20,16 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import func, select, text, update
+from sqlalchemy import func, select, text
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from app.domain.references import generate_reference
-from app.domain.trip_status import TripStatus, assert_transition, path_to
-from app.models import Booking, Bus, Town, Trip, Zone, ZoneFare
+from app.domain.trip_status import TripStatus, path_to
+from app.models import Bus, Town, Trip, Zone, ZoneFare
+from app.schemas.booking import BookingIn
+from app.services.booking_service import BookingService
 from app.services.reconciliation import find_drift
+from app.services.trip_service import TripService
 
 logger = logging.getLogger("app.seed")
 LAGOS = ZoneInfo("Africa/Lagos")
@@ -121,7 +124,12 @@ def seed(session: Session, *, reset: bool = False, now: datetime | None = None) 
     insert_buses(session, overwrite=reset)
 
     if reset:
-        session.execute(text("TRUNCATE bookings, trips RESTART IDENTITY CASCADE"))
+        session.execute(
+            text(
+                "TRUNCATE idempotency_keys, trip_status_history, bookings, trips "
+                "RESTART IDENTITY CASCADE"
+            )
+        )
     if session.scalar(select(func.count()).select_from(Trip)):
         logger.info("seed.skipped", extra={"reason": "trips already present"})
         session.commit()
@@ -129,12 +137,17 @@ def seed(session: Session, *, reset: bool = False, now: datetime | None = None) 
         return
 
     trips = _insert_trips(session, now)
-    for key, name, seats in BOOKINGS:
-        _book(session, trips[key], name, seats)
-    for spec in TRIPS:
-        _advance(session, trips[spec.key], spec.final_status)
-
     session.commit()
+    booking = BookingService(session, clock=lambda: now - timedelta(days=3))
+    for key, name, seats in BOOKINGS:
+        booking.create(
+            BookingIn(trip_id=trips[key].id, passenger_name=name, seats=seats)
+        )
+    transitions = TripService(session)
+    for spec in TRIPS:
+        for step in path_to(spec.final_status):
+            transitions.transition(trips[spec.key].id, step)
+
     _check_drift(session)
     logger.info("seed.done", extra={"trips": len(TRIPS), "bookings": len(BOOKINGS)})
 
@@ -221,61 +234,6 @@ def _insert_trips(session: Session, now: datetime) -> dict[str, Trip]:
         trips[spec.key] = trip
     session.flush()
     return trips
-
-
-def _fare_cents(session: Session, trip: Trip) -> int:
-    """Read the fare from zone_fares (the source of truth), normalising the zone pair."""
-    oz, dz = TOWNS[trip.origin_town_id][1], TOWNS[trip.destination_town_id][1]
-    fare = session.scalar(
-        select(ZoneFare.fare_cents).where(
-            ZoneFare.zone_a_id == min(oz, dz), ZoneFare.zone_b_id == max(oz, dz)
-        )
-    )
-    if fare is None:
-        raise RuntimeError(f"no fare configured for zones {oz} and {dz}")
-    return fare
-
-
-def _book(session: Session, trip: Trip, name: str, seats: int) -> None:
-    # Same atomic, conditional counter update the booking service uses. The departure-time
-    # check is left out so trips that are already in the past can carry historic bookings.
-    # TODO(booking service): call BookingService with an injected clock instead.
-    updated = session.execute(
-        update(Trip)
-        .where(
-            Trip.id == trip.id,
-            Trip.status == TripStatus.SCHEDULED,
-            Trip.seats_booked + seats <= Trip.capacity,
-        )
-        .values(seats_booked=Trip.seats_booked + seats)
-        .returning(Trip.id)
-    ).first()
-    if updated is None:
-        raise RuntimeError(f"seed booking rejected for trip {trip.id}")
-    fare = _fare_cents(session, trip)
-    session.add(
-        Booking(
-            reference=generate_reference(),
-            trip_id=trip.id,
-            passenger_name=name,
-            seats=seats,
-            fare_cents_per_seat=fare,
-            total_cents=fare * seats,
-        )
-    )
-    session.flush()
-
-
-def _advance(session: Session, trip: Trip, target: TripStatus) -> None:
-    current = TripStatus.SCHEDULED
-    for step in path_to(target) if target is not TripStatus.SCHEDULED else []:
-        assert_transition(current, step)
-        session.execute(
-            update(Trip)
-            .where(Trip.id == trip.id, Trip.status == current)
-            .values(status=step)
-        )
-        current = step
 
 
 def _check_drift(session: Session) -> None:

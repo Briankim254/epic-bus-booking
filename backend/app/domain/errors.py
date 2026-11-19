@@ -67,6 +67,11 @@ class InsufficientSeats(Conflict):
         return {"remaining": self.remaining}
 
 
+class TripNotReassignable(Conflict):
+    code = "trip-not-reassignable"
+    title = "Only a scheduled trip can move to another bus"
+
+
 class StaleStatus(Conflict):
     code = "stale-status"
     title = "Trip status changed; reload and try again"

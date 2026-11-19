@@ -1,27 +1,38 @@
-"""seats_booked is a denormalised counter; this checks it against the bookings table."""
+"""seats_booked is a denormalised counter; this checks it against the bookings table.
 
-import uuid
-from dataclasses import dataclass
+Never auto-repair: drift means a bug, so it is reported and alerted on.
+"""
 
-from sqlalchemy import func, select
+import logging
+from collections.abc import Callable
+from datetime import datetime
+
 from sqlalchemy.orm import Session
 
-from app.models import Booking, Trip
+from app.core.clock import utcnow
+from app.repositories.trips import Drift, TripRepository
+from app.schemas.admin import DriftItem, DriftReport
 
+__all__ = ["Drift", "find_drift", "report"]
 
-@dataclass(frozen=True)
-class Drift:
-    trip_id: uuid.UUID
-    counter: int
-    actual: int
+logger = logging.getLogger("app.reconciliation")
 
 
 def find_drift(session: Session) -> list[Drift]:
-    actual = func.coalesce(func.sum(Booking.seats), 0)
-    rows = session.execute(
-        select(Trip.id, Trip.seats_booked, actual)
-        .outerjoin(Booking, Booking.trip_id == Trip.id)
-        .group_by(Trip.id)
-        .having(Trip.seats_booked != actual)
-    ).all()
-    return [Drift(trip_id=r[0], counter=r[1], actual=r[2]) for r in rows]
+    return TripRepository(session).find_drift()
+
+
+def report(session: Session, *, clock: Callable[[], datetime] = utcnow) -> DriftReport:
+    drift = find_drift(session)
+    for d in drift:
+        logger.error(
+            "reconciliation.drift",
+            extra={"trip_id": str(d.trip_id), "counter": d.counter, "actual": d.actual},
+        )
+    return DriftReport(
+        checked_at=clock(),
+        drifted=[
+            DriftItem(trip_id=d.trip_id, counter=d.counter, actual=d.actual)
+            for d in drift
+        ],
+    )

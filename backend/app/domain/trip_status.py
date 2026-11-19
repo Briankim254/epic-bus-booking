@@ -27,7 +27,9 @@ TRANSITIONS: Mapping[TripStatus, frozenset[TripStatus]] = {
     TripStatus.COMPLETED: frozenset(),
 }
 
+# Only a scheduled trip can take bookings (A1) or move to another bus (A10).
 BOOKABLE: frozenset[TripStatus] = frozenset({TripStatus.SCHEDULED})
+REASSIGNABLE: frozenset[TripStatus] = frozenset({TripStatus.SCHEDULED})
 
 
 class InvalidTransition(Conflict):

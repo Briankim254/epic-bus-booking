@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { healthHealthCheckData, healthHealthCheckResponses } from './types.gen';
+import type { adminAdminSearchTripsData, adminAdminSearchTripsErrors, adminAdminSearchTripsResponses, adminAssignBusData, adminAssignBusErrors, adminAssignBusResponses, adminCreateBusData, adminCreateBusErrors, adminCreateBusResponses, adminGetReconciliationData, adminGetReconciliationResponses, adminListBusesData, adminListBusesResponses, adminTransitionTripData, adminTransitionTripErrors, adminTransitionTripResponses, adminUpdateBusData, adminUpdateBusErrors, adminUpdateBusResponses, bookingsCreateBookingData, bookingsCreateBookingErrors, bookingsCreateBookingResponses, bookingsGetBookingData, bookingsGetBookingErrors, bookingsGetBookingResponses, faresQuoteFareData, faresQuoteFareErrors, faresQuoteFareResponses, healthHealthCheckData, healthHealthCheckResponses, townsListTownsData, townsListTownsResponses, tripsGetTripData, tripsGetTripErrors, tripsGetTripResponses, tripsSearchTripsData, tripsSearchTripsErrors, tripsSearchTripsResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -27,6 +27,193 @@ export class HealthService {
             responseType: 'json',
             url: '/api/v1/health',
             ...options
+        });
+    }
+}
+
+export class TownsService {
+    /**
+     * List Towns
+     */
+    public static listTowns<ThrowOnError extends boolean = true>(options?: Options<townsListTownsData, ThrowOnError>) {
+        return (options?.client ?? client).get<townsListTownsResponses, unknown, ThrowOnError>({
+            responseType: 'json',
+            url: '/api/v1/towns',
+            ...options
+        });
+    }
+}
+
+export class FaresService {
+    /**
+     * Quote Fare
+     *
+     * Price a journey. The fare is per seat and depends only on the two towns' zones.
+     */
+    public static quoteFare<ThrowOnError extends boolean = true>(options: Options<faresQuoteFareData, ThrowOnError>) {
+        return (options.client ?? client).get<faresQuoteFareResponses, faresQuoteFareErrors, ThrowOnError>({
+            responseType: 'json',
+            url: '/api/v1/fares/quote',
+            ...options
+        });
+    }
+}
+
+export class TripsService {
+    /**
+     * Search Trips
+     *
+     * Bookable trips only: scheduled, departing in the future, with a seat left.
+     */
+    public static searchTrips<ThrowOnError extends boolean = true>(options?: Options<tripsSearchTripsData, ThrowOnError>) {
+        return (options?.client ?? client).get<tripsSearchTripsResponses, tripsSearchTripsErrors, ThrowOnError>({
+            responseType: 'json',
+            url: '/api/v1/trips',
+            ...options
+        });
+    }
+    
+    /**
+     * Get Trip
+     */
+    public static getTrip<ThrowOnError extends boolean = true>(options: Options<tripsGetTripData, ThrowOnError>) {
+        return (options.client ?? client).get<tripsGetTripResponses, tripsGetTripErrors, ThrowOnError>({
+            responseType: 'json',
+            url: '/api/v1/trips/{trip_id}',
+            ...options
+        });
+    }
+}
+
+export class BookingsService {
+    /**
+     * Create Booking
+     */
+    public static createBooking<ThrowOnError extends boolean = true>(options: Options<bookingsCreateBookingData, ThrowOnError>) {
+        return (options.client ?? client).post<bookingsCreateBookingResponses, bookingsCreateBookingErrors, ThrowOnError>({
+            responseType: 'json',
+            url: '/api/v1/bookings',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+    
+    /**
+     * Get Booking
+     */
+    public static getBooking<ThrowOnError extends boolean = true>(options: Options<bookingsGetBookingData, ThrowOnError>) {
+        return (options.client ?? client).get<bookingsGetBookingResponses, bookingsGetBookingErrors, ThrowOnError>({
+            responseType: 'json',
+            url: '/api/v1/bookings/{reference}',
+            ...options
+        });
+    }
+}
+
+export class AdminService {
+    /**
+     * Admin Search Trips
+     *
+     * Every trip in every status, with how full it is.
+     */
+    public static adminSearchTrips<ThrowOnError extends boolean = true>(options?: Options<adminAdminSearchTripsData, ThrowOnError>) {
+        return (options?.client ?? client).get<adminAdminSearchTripsResponses, adminAdminSearchTripsErrors, ThrowOnError>({
+            responseType: 'json',
+            url: '/api/v1/admin/trips',
+            ...options
+        });
+    }
+    
+    /**
+     * Transition Trip
+     *
+     * Move a trip one step along scheduled → boarding → … → completed.
+     */
+    public static transitionTrip<ThrowOnError extends boolean = true>(options: Options<adminTransitionTripData, ThrowOnError>) {
+        return (options.client ?? client).post<adminTransitionTripResponses, adminTransitionTripErrors, ThrowOnError>({
+            responseType: 'json',
+            url: '/api/v1/admin/trips/{trip_id}/transitions',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+    
+    /**
+     * Assign Bus
+     *
+     * Move a scheduled trip to another active bus with enough seats (A9, A10).
+     */
+    public static assignBus<ThrowOnError extends boolean = true>(options: Options<adminAssignBusData, ThrowOnError>) {
+        return (options.client ?? client).put<adminAssignBusResponses, adminAssignBusErrors, ThrowOnError>({
+            responseType: 'json',
+            url: '/api/v1/admin/trips/{trip_id}/bus',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+    
+    /**
+     * Get Reconciliation
+     *
+     * Trips whose seat counter disagrees with their bookings. Should always be empty.
+     */
+    public static getReconciliation<ThrowOnError extends boolean = true>(options?: Options<adminGetReconciliationData, ThrowOnError>) {
+        return (options?.client ?? client).get<adminGetReconciliationResponses, unknown, ThrowOnError>({
+            responseType: 'json',
+            url: '/api/v1/admin/reconciliation',
+            ...options
+        });
+    }
+    
+    /**
+     * List Buses
+     */
+    public static listBuses<ThrowOnError extends boolean = true>(options?: Options<adminListBusesData, ThrowOnError>) {
+        return (options?.client ?? client).get<adminListBusesResponses, unknown, ThrowOnError>({
+            responseType: 'json',
+            url: '/api/v1/admin/buses',
+            ...options
+        });
+    }
+    
+    /**
+     * Create Bus
+     */
+    public static createBus<ThrowOnError extends boolean = true>(options: Options<adminCreateBusData, ThrowOnError>) {
+        return (options.client ?? client).post<adminCreateBusResponses, adminCreateBusErrors, ThrowOnError>({
+            responseType: 'json',
+            url: '/api/v1/admin/buses',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+    
+    /**
+     * Update Bus
+     *
+     * Change name, capacity or active. Trips already on this bus keep their capacity.
+     */
+    public static updateBus<ThrowOnError extends boolean = true>(options: Options<adminUpdateBusData, ThrowOnError>) {
+        return (options.client ?? client).patch<adminUpdateBusResponses, adminUpdateBusErrors, ThrowOnError>({
+            responseType: 'json',
+            url: '/api/v1/admin/buses/{bus_id}',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
         });
     }
 }

@@ -8,8 +8,11 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.responses import Response
 
 from app.core.logging import request_id_var
+from app.domain.errors import DomainError
 
 PROBLEM_MEDIA_TYPE = "application/problem+json"
 logger = logging.getLogger("app.errors")
@@ -90,6 +93,18 @@ async def _validation_error(request: Request, exc: Exception) -> JSONResponse:
     )
 
 
+async def _domain_error(request: Request, exc: Exception) -> JSONResponse:
+    assert isinstance(exc, DomainError)
+    return problem_response(
+        request,
+        status=exc.status,
+        code=exc.code,
+        title=exc.title,
+        detail=exc.detail,
+        **exc.extra(),
+    )
+
+
 async def _unhandled(request: Request, exc: Exception) -> JSONResponse:
     logger.exception("unhandled error", exc_info=exc)
     return problem_response(
@@ -97,7 +112,25 @@ async def _unhandled(request: Request, exc: Exception) -> JSONResponse:
     )
 
 
+class UnhandledErrorMiddleware(BaseHTTPMiddleware):
+    """Turns any uncaught exception into a generic 500 problem.
+
+    Added inside RequestIdMiddleware, so the request id is still set and the response
+    still gets its X-Request-ID header. (Starlette's own catch-all runs outermost, after
+    the request id is gone.) The traceback goes to the logs, never to the client.
+    """
+
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
+        try:
+            return await call_next(request)
+        except Exception as exc:
+            return await _unhandled(request, exc)
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(StarletteHTTPException, _http_exception)
     app.add_exception_handler(RequestValidationError, _validation_error)
+    app.add_exception_handler(DomainError, _domain_error)
     app.add_exception_handler(Exception, _unhandled)
