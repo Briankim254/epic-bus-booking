@@ -22,13 +22,27 @@ docker compose up --build
 | API docs (OpenAPI) | http://localhost:8000/docs |
 | Adminer (server `db`, user `postgres`, password from `.env`) | http://localhost:8080 |
 
-## Reset and reseed
+## Seed data, reset and reseed
+
+On every start, the `prestart` service runs `alembic upgrade head` and then `python -m app.cli seed` ([backend/app/seed.py](backend/app/seed.py)). The seed contains:
+
+- 6 towns in 4 zones and the 10-row fare table. These are upserted on every run.
+- 4 buses with dummy plates `TEST-001` to `TEST-004`: two with 44 seats, two with 40. Missing buses are added on every run, but existing ones are never overwritten, so an operator's edits survive a restart.
+- 10 trips, each assigned a bus and copying its capacity (40 or 44). Eight are `scheduled` over the next three days, one is `departed` (on the road now) and one is `arrived`. Departure times are relative to now, so there are always future trips.
+- 15 bookings. Lagos → Abuja tomorrow is left with **exactly one seat** for the last-seat demo.
+
+Trips and bookings are only inserted when the `trips` table is empty, so restarting never duplicates them. Every counter is checked against the bookings at the end of a seed run.
 
 ```bash
-docker compose down -v && docker compose up -d --build
-```
+# Reseed trips and bookings and restore the seed buses, keeping the database
+docker compose exec backend python -m app.cli seed --reset
 
-The `prestart` service runs `alembic upgrade head` and then `python -m app.cli seed` on every start. Seed departure times are relative to now, so there are always future trips.
+# Full reset: drop the database volume, then migrate and seed from scratch
+docker compose down -v && docker compose up -d --build
+
+# Check seat counters against bookings (exits non-zero on drift)
+docker compose exec backend python -m app.cli reconcile
+```
 
 ## Run the tests
 
@@ -70,6 +84,9 @@ Lint everything: `cd backend && uv run bash scripts/lint.sh` and `yarn lint`.
 | A6 | Bookings and trips cannot be cancelled |
 | A7 | Trip status changes are an operator action through the API. The dashboard is read-only, as specified |
 | A8 | Seats are a count per trip, not numbered |
+| A9 | Every trip runs on one bus. The trip copies the bus's capacity when the bus is assigned, so a later capacity change only affects trips assigned after it |
+| A10 | A trip can move to another bus only while `Scheduled`, and only if the new bus is active and has at least as many seats as are already booked |
+| A11 | Bus editing is an operator action through the unauthenticated admin API, the same as trip status changes |
 
 ## Repository layout
 

@@ -24,3 +24,5 @@ Add a row as you go. Reconstructing this on Friday night will be inaccurate.
 |---|---|---|---|---|
 | 2026-11-17 | Build plan (PLAN 1.md) | Claude | Assisted | Read against the brief; assumptions checked |
 | 2026-11-18 | Monorepo init plan and skeleton (this repo's first state) | Claude Code | Assisted | Lint, smoke tests, `docker compose up`, manual review of every file |
+| 2026-11-18 | Models, initial migration, seed command, seed-data tests | Claude Code | Assisted | Read the migration; seeded twice (idempotent) and with --reset; reconcile clean; queried rows against the brief |
+| 2026-11-18 | Bus model and bus seed data (migration generated and applied by me) | Claude Code | Assisted | Unit tests; Claude trial-ran the migration and seed on a throwaway Postgres; I ran autogenerate, read the migration, upgraded and seeded myself |

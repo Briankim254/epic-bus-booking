@@ -13,7 +13,7 @@ I have read the brief. The facts that shape the plan:
 - A booking is a name and a number of seats, returning a reference. No payment step, no numbered seats.
 - The admin dashboard is a **read-only list**: route, departure time, capacity, bookings so far, status. The brief never asks for an admin to change a trip's status.
 - Search is origin, destination and date. Nothing about price filters, sorting or pagination.
-- Seed data: 6 towns, about 10 trips (capacity 40 or 44, one or two already Departed or Arrived), about 15 bookings.
+- Seed data: 6 towns, 4 buses, about 10 trips (capacity 40 or 44 from the assigned bus, one or two already Departed or Arrived), about 15 bookings.
 - It lists as *not wanted*: production polish on every corner, elaborate deployment, auth, custom frontend, perfect coverage.
 - The one edge case it names: two customers booking the last seat.
 - The design doc must also cover scaling to 50 routes and 10,000 bookings a day, and it must fit one page.
@@ -33,6 +33,9 @@ The brief says to make a sensible assumption and note it. These are yours:
 | A6 | Bookings and trips cannot be cancelled |
 | A7 | Trip status changes are an operator action through the API; the dashboard is read-only as specified |
 | A8 | Seats are a count per trip, not numbered |
+| A9 | Every trip runs on one bus. The trip copies the bus's capacity when the bus is assigned, so a later capacity change only affects trips assigned after it |
+| A10 | A trip can move to another bus only while `scheduled`, and only if the new bus is active and has at least as many seats as are already booked |
+| A11 | Bus editing is an operator action through the unauthenticated admin API, the same as trip status changes |
 
 ### Where I'm overruling your choices
 
@@ -107,6 +110,7 @@ flowchart LR
 | Data | Authority | Notes |
 |---|---|---|
 | Zones, towns, fares | Postgres | Seeded reference data |
+| Buses | Postgres | Seeded; operators can add and edit them through the admin API |
 | Trip status, capacity, `seats_booked` | Postgres | Changed only through conditional `UPDATE`s |
 | Bookings and fare snapshot | Postgres | Immutable once written |
 | Idempotency records | Postgres | Written in the same transaction as the booking |
@@ -159,12 +163,22 @@ zone_fares                                   -- 10 rows for 4 zones, not 16
   CHECK ordered:  zone_a_id <= zone_b_id
   CHECK positive: fare_cents > 0
 
+buses
+  id                   int PK
+  plate_number         varchar(20) NOT NULL UNIQUE   -- what the passenger looks for at the park
+  name                 varchar(50)                   -- optional, e.g. "Coach 07"
+  capacity             int NOT NULL
+  active               bool NOT NULL DEFAULT true    -- retired or in maintenance: can't be assigned
+  created_at, updated_at timestamptz
+  CHECK capacity_pos:  capacity > 0
+
 trips
   id                   uuid PK
   origin_town_id       int NOT NULL FK towns
   destination_town_id  int NOT NULL FK towns
+  bus_id               int NOT NULL FK buses
   departs_at           timestamptz NOT NULL          -- UTC
-  capacity             int NOT NULL
+  capacity             int NOT NULL                  -- copied from the bus when it is assigned
   seats_booked         int NOT NULL DEFAULT 0
   status               varchar(20) NOT NULL DEFAULT 'scheduled'
   created_at, updated_at timestamptz
@@ -174,6 +188,7 @@ trips
   CHECK status_valid:    status IN ('scheduled','boarding','departed','in_transit','arrived','completed')
   INDEX (origin_town_id, destination_town_id, departs_at)                 -- customer search
   INDEX (status, departs_at)                                              -- admin list, "stuck" query
+  INDEX (bus_id)
 
 bookings
   id                   uuid PK
@@ -205,6 +220,16 @@ trip_status_history                                 -- first thing to cut if beh
 
 Notes:
 - **Fare on the trip?** No. Trips derive their fare by joining `zone_fares` on `LEAST(oz, dz), GREATEST(oz, dz)`. Ten rows; the join is free. The fare is copied onto the booking, so later fare changes never alter history.
+- **Capacity on the trip as well as the bus?** Yes, on purpose. A CHECK can't read another table, so if capacity lived only on `buses`, the `ck_trips_seats_range` backstop would be lost and the seat `UPDATE` would need a join. The trip copies the bus's capacity when the bus is assigned. Changing a bus's capacity never changes existing trips.
+- **Status lives on the trip, not the bus.** A trip is one bus running one route at one time. The bus's own state is just `active`.
+- **Reassigning a bus** (for example after a breakdown) is one conditional `UPDATE`, in the same style as the seat update, so it can't race with a booking:
+  ```sql
+  UPDATE trips SET bus_id = :bus_id, capacity = :capacity, updated_at = now()
+  WHERE id = :trip_id AND status = 'scheduled' AND seats_booked <= :capacity
+  RETURNING ...
+  ```
+  If no row comes back, the service reads the trip again to decide between 404 and 409. The service checks that the bus is `active` before running the update.
+- **Not prevented: one bus on two overlapping trips.** Doing it properly needs trip end times and a Postgres `EXCLUDE` constraint on a time range. This is out of scope; list it as a trade-off.
 - Bookings have no status column in the built version: a row exists only if it is confirmed. Add one only if you build holds.
 - Money is integer US cents everywhere; the brief prices in USD.
 
@@ -394,14 +419,26 @@ GET  /api/v1/bookings/{reference}                 200 BookingOut          404
 GET  /api/v1/admin/trips                          200 TripPage            422
 POST /api/v1/admin/trips/{trip_id}/transitions    200 TripOut             404 409 422
 GET  /api/v1/admin/reconciliation                 200 DriftReport
+
+GET   /api/v1/admin/buses                         200 BusOut[]
+POST  /api/v1/admin/buses                         201 BusOut              409 422
+PATCH /api/v1/admin/buses/{bus_id}                200 BusOut              404 422
+PUT   /api/v1/admin/trips/{trip_id}/bus           200 TripOut             404 409 422
 ```
+
+Bus endpoints: a duplicate plate number is a 409. Changing a bus's capacity doesn't touch trips it is already on (assumption A9). Reassigning a trip returns 409 if the trip isn't `scheduled`, the bus is inactive, or the bus has fewer seats than are already booked (A10).
 
 The quote endpoint exists because the README must show "a journey being priced". It is a thin wrapper over the pure fare function.
 
 ```text
 TownOut      { id, name, zone_id }
 FareQuote    { origin: TownOut, destination: TownOut, fare_cents, currency: "USD" }
-TripOut      { id, origin: TownOut, destination: TownOut, departs_at (UTC, ISO 8601),
+BusRef       { id, plate_number, name }
+BusOut       { id, plate_number, name, capacity, active }
+BusIn        { plate_number: str(1..20), name?: str(..50), capacity: int(1..100) }
+BusPatch     { name?, capacity?: int(1..100), active? }
+BusAssignIn  { bus_id: int }
+TripOut      { id, origin: TownOut, destination: TownOut, bus: BusRef, departs_at (UTC, ISO 8601),
                status, capacity, seats_booked, seats_available, fare_cents, currency: "USD" }
 TripPage     { items: TripOut[], total, limit, offset }
 BookingIn    { trip_id: uuid, passenger_name: str(1..100), seats: int(1..MAX_SEATS) }
@@ -502,7 +539,7 @@ backend/app/
 │   ├── deps.py                # dependency injection lives here
 │   ├── main.py                # api_router
 │   └── routes/                # HTTP only: parse, call one service method, shape response
-│       ├── health.py  towns.py  trips.py  bookings.py  admin_trips.py
+│       ├── health.py  towns.py  trips.py  bookings.py  admin_trips.py  admin_buses.py
 ├── core/
 │   ├── config.py              # pydantic-settings
 │   ├── db.py                  # engine, session factory
@@ -515,13 +552,13 @@ backend/app/
 │   ├── references.py
 │   └── errors.py
 ├── models/                    # SQLAlchemy tables only
-│   ├── base.py  geography.py  trip.py  booking.py  idempotency.py
+│   ├── base.py  geography.py  bus.py  trip.py  booking.py  idempotency.py
 ├── schemas/                   # Pydantic API contracts only
-│   ├── common.py  town.py  trip.py  booking.py
+│   ├── common.py  town.py  bus.py  trip.py  booking.py
 ├── repositories/              # all SQL lives here
-│   ├── trips.py  bookings.py  fares.py  idempotency.py
+│   ├── buses.py  trips.py  bookings.py  fares.py  idempotency.py
 ├── services/                  # orchestration and transactions
-│   ├── booking_service.py  trip_service.py  reconciliation.py
+│   ├── booking_service.py  trip_service.py  bus_service.py  reconciliation.py
 └── alembic/
 backend/tests/
 ├── unit/         # domain/, no database
@@ -616,7 +653,8 @@ Caveat to know: autogenerate also doesn't detect changes to CHECK constraints, s
 **Seeding.** Replace `initial_data.py` with `python -m app.cli seed`, called from the prestart script after migrations:
 
 - Reference data (4 zones, 6 towns, 10 fares): idempotent upserts, safe on every start.
-- About 10 trips, inserted only if `trips` is empty, capacity 40 or 44, with departure times relative to now so the panel always sees future trips whenever they run it. Seven or eight `scheduled` in the next few days; one `departed` and one `arrived` with departure times in the past.
+- 4 buses (two with 40 seats, two with 44), upserted by plate number. Dummy plates, e.g. `TEST-001`.
+- About 10 trips, inserted only if `trips` is empty, each assigned a bus and copying its capacity, with departure times relative to now so the panel always sees future trips whenever they run it. Seven or eight `scheduled` in the next few days; one `departed` and one `arrived` with departure times in the past.
 - About 15 bookings, **created through the booking service's own code path**, not raw inserts, so every counter is correct by construction. The departed and arrived trips need bookings too: seed those while the trip is still `scheduled`, then advance it through the state machine. The seed therefore exercises both state machines on every start.
 - Make one scheduled trip end up with exactly one seat left, for the last-seat demo.
 - The seed finishes by running the reconciliation check and failing loudly if it finds drift.
@@ -653,6 +691,8 @@ Caveat to know: autogenerate also doesn't detect changes to CHECK constraints, s
    - **Same idempotency key, 10 threads:** exactly 1 booking row.
    - Direct `UPDATE trips SET seats_booked = capacity + 1` raises `IntegrityError`. This proves layer 2 independently.
 5. **Trip service** (integration): valid transition persists and writes history; invalid raises; stale `current` status returns conflict.
+   - **Bus reassignment:** succeeds while `scheduled` and copies the new capacity; fails with a conflict when the trip isn't `scheduled`, the bus is inactive, or the bus has fewer seats than `seats_booked`. Changing a bus's capacity leaves existing trips unchanged.
+   - Reassignment racing a booking for the last seats (threads + `Barrier`): the CHECK is never violated and reconciliation is empty.
 6. **API** (TestClient)
    - Seats 0, negative, over the cap, non-integer → 422 problem+json.
    - Names: blank, whitespace only, 101 chars, control characters → 422. `Ọláyíwọlá Chukwuémeká`, `Ngọzi`, and a name with an apostrophe and hyphen → 201, round-tripped exactly.
@@ -660,6 +700,7 @@ Caveat to know: autogenerate also doesn't detect changes to CHECK constraints, s
    - Search: date boundary (a 23:30 UTC trip belongs to the *next* Lagos day), each filter, each sort, `sort=evil` → 422, limit cap, pagination stability.
    - Every error response has content type `application/problem+json` and a `request_id`.
    - Admin transition endpoint: 200, 409, 404.
+   - Admin bus endpoints: create 201, duplicate plate 409, capacity 0 → 422, PATCH unknown bus 404, reassign 200/404/409.
 
 Keep the red-green rhythm visible in the commit history for at least the fare and booking service work (`test: …` then `feat: …`). The panel will look at your commits.
 
@@ -725,7 +766,7 @@ Build (a):
 ```text
 routes/admin/trips.tsx
 └── AdminTripsPage                   banner: "Trusted-only: no authentication, per the brief"
-    └── TripsTable                   route, departure, capacity, bookings so far, status Badge
+    └── TripsTable                   route, departure, bus (plate), capacity, bookings so far, status Badge
         └── AdvanceStatusButton      STRETCH ONLY: shows the single next status; useMutation(transitionTrip)
                                      409 -> toast "Status changed elsewhere" + invalidate
 ```
@@ -829,6 +870,8 @@ The brief asks you to *describe* production monitoring. Build the cheap foundati
 | Idempotency store | Postgres, same transaction | Sub-millisecond lookups, automatic TTL | Atomic with the booking; no "key saved but booking lost" window |
 | Sync vs async SQLAlchemy | Sync | Higher concurrency per worker | Template default, simpler tests, irrelevant at this load |
 | Fare on trip vs derived | Derived, snapshotted on booking | A simple column to sort by | One place to change a fare; history can't be altered |
+| Capacity on bus only vs copied to trip | Copied to the trip on assignment | One place to change capacity | Keeps the `seats_range` CHECK and the single-table seat `UPDATE`; a bus change can't break trips already sold |
+| Prevent one bus on overlapping trips | Not enforced | Protection against double-scheduling a bus | Needs trip end times and an `EXCLUDE` constraint; out of scope for the prototype |
 
 ### The three for the design document
 
