@@ -117,8 +117,8 @@ BOOKINGS = [
 
 def seed(session: Session, *, reset: bool = False, now: datetime | None = None) -> None:
     now = now or datetime.now(UTC)
-    _upsert_reference_data(session)
-    _insert_buses(session, overwrite=reset)
+    upsert_reference_data(session)
+    insert_buses(session, overwrite=reset)
 
     if reset:
         session.execute(text("TRUNCATE bookings, trips RESTART IDENTITY CASCADE"))
@@ -139,7 +139,7 @@ def seed(session: Session, *, reset: bool = False, now: datetime | None = None) 
     logger.info("seed.done", extra={"trips": len(TRIPS), "bookings": len(BOOKINGS)})
 
 
-def _upsert_reference_data(session: Session) -> None:
+def upsert_reference_data(session: Session) -> None:
     zones = insert(Zone).values([{"id": i, "name": n} for i, n in ZONES.items()])
     session.execute(
         zones.on_conflict_do_update(
@@ -171,7 +171,7 @@ def _upsert_reference_data(session: Session) -> None:
     )
 
 
-def _insert_buses(session: Session, *, overwrite: bool) -> None:
+def insert_buses(session: Session, *, overwrite: bool) -> None:
     buses = insert(Bus).values(
         [
             {"plate_number": p, "name": n, "capacity": c, "active": True}
