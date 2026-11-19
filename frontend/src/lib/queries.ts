@@ -40,7 +40,6 @@ export const tripsQuery = (search: TripSearch) =>
 
 export const adminTripsQuery = queryOptions({
   queryKey: ["admin", "trips"],
-  // About 10 trips: one page, paged client-side by the table.
   queryFn: async () =>
     (
       await AdminService.adminSearchTrips({
