@@ -9,7 +9,16 @@ from app.models.base import Base
 from app.models.bus import Bus
 from app.models.geography import Town
 
-_STATUS_VALUES = ", ".join(f"'{s.value}'" for s in TripStatus)
+# Shared with trip_status_history: a non-native enum (varchar + CHECK, no Postgres ENUM),
+# so adding a status is a one-constraint migration.
+STATUS_VALUES_SQL = ", ".join(f"'{s.value}'" for s in TripStatus)
+TRIP_STATUS_TYPE = Enum(
+    TripStatus,
+    native_enum=False,
+    length=20,
+    create_constraint=False,
+    values_callable=lambda e: [m.value for m in e],
+)
 
 
 class Trip(Base):
@@ -21,7 +30,7 @@ class Trip(Base):
         CheckConstraint(
             "seats_booked >= 0 AND seats_booked <= capacity", name="seats_range"
         ),
-        CheckConstraint(f"status IN ({_STATUS_VALUES})", name="status_valid"),
+        CheckConstraint(f"status IN ({STATUS_VALUES_SQL})", name="status_valid"),
         Index(
             "ix_trips_route_departs_at",
             "origin_town_id",
@@ -39,13 +48,7 @@ class Trip(Base):
     capacity: Mapped[int]  # copied from the bus when it is assigned (A9)
     seats_booked: Mapped[int] = mapped_column(server_default="0", default=0)
     status: Mapped[TripStatus] = mapped_column(
-        Enum(
-            TripStatus,
-            native_enum=False,
-            length=20,
-            create_constraint=False,
-            values_callable=lambda e: [m.value for m in e],
-        ),
+        TRIP_STATUS_TYPE,
         server_default=TripStatus.SCHEDULED.value,
         default=TripStatus.SCHEDULED,
     )
