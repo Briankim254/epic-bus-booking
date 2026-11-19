@@ -1,10 +1,12 @@
-"""Trip lifecycle rules. Pure: no imports from the rest of the app.
+"""Trip lifecycle rules. Pure: imports nothing from the app except domain errors.
 
 Nothing else in the codebase compares statuses; ask this module instead.
 """
 
 from collections.abc import Mapping
 from enum import StrEnum
+
+from app.domain.errors import Conflict
 
 
 class TripStatus(StrEnum):
@@ -28,7 +30,10 @@ TRANSITIONS: Mapping[TripStatus, frozenset[TripStatus]] = {
 BOOKABLE: frozenset[TripStatus] = frozenset({TripStatus.SCHEDULED})
 
 
-class InvalidTransition(Exception):
+class InvalidTransition(Conflict):
+    code = "invalid-transition"
+    title = "Trip status cannot change this way"
+
     def __init__(self, current: TripStatus, target: TripStatus) -> None:
         super().__init__(f"Cannot move a trip from {current} to {target}.")
         self.current = current

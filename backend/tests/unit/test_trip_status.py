@@ -3,8 +3,8 @@
 from itertools import product
 
 import pytest
-from app.domain.errors import DomainError
 
+from app.domain.errors import DomainError
 from app.domain.trip_status import (
     BOOKABLE,
     InvalidTransition,

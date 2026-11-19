@@ -3,9 +3,9 @@
 from itertools import product
 
 import pytest
+
 from app.domain.errors import FareNotConfigured, SameTownError
 from app.domain.fares import TownRef, fare_for_zones, quote
-
 from app.seed import FARES
 
 # The brief's fare table, written out in full (all 16 ordered pairs) and independently of
