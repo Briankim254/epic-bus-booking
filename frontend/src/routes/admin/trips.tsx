@@ -1,56 +1,59 @@
+import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { RefreshCw } from "lucide-react"
+import { TripsTable } from "@/components/Admin/TripsTable"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
+import { problemMessage } from "@/lib/problem"
+import { adminTripsQuery } from "@/lib/queries"
 
 export const Route = createFileRoute("/admin/trips")({
   component: AdminTripsPage,
   head: () => ({ meta: [{ title: "Trips · Admin · EPIC Booking" }] }),
 })
 
-// The brief's five columns, in the brief's order.
-const COLUMNS = [
-  "Route",
-  "Departure",
-  "Capacity",
-  "Bookings so far",
-  "Status",
-] as const
-
 function AdminTripsPage() {
+  const trips = useQuery(adminTripsQuery)
   return (
     <section className="space-y-4">
-      <h1 className="text-2xl font-semibold">Trips</h1>
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-semibold">Trips</h1>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => trips.refetch()}
+          disabled={trips.isFetching}
+        >
+          <RefreshCw
+            className={trips.isFetching ? "animate-spin" : undefined}
+          />
+          Refresh
+        </Button>
+      </div>
       <Alert>
         <AlertDescription>
-          Trusted-only: no authentication, per the brief.
+          Trusted-only: no authentication, per the brief. Read-only; status
+          changes go through the admin API.
         </AlertDescription>
       </Alert>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            {COLUMNS.map((c) => (
-              <TableHead key={c}>{c}</TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          <TableRow>
-            <TableCell
-              colSpan={COLUMNS.length}
-              className="text-center text-muted-foreground"
-            >
-              No trips yet.
-            </TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
+      {trips.isPending ? (
+        <div className="space-y-2" aria-busy="true">
+          <p className="sr-only" role="status">
+            Loading trips
+          </p>
+          {[0, 1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-10 w-full" />
+          ))}
+        </div>
+      ) : trips.isError ? (
+        <Alert variant="destructive">
+          <AlertTitle>Could not load trips</AlertTitle>
+          <AlertDescription>{problemMessage(trips.error)}</AlertDescription>
+        </Alert>
+      ) : (
+        <TripsTable trips={trips.data.items} />
+      )}
     </section>
   )
 }

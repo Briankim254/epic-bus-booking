@@ -3,8 +3,6 @@
 import uuid
 
 import pytest
-from app.services.bus_service import BusService
-from app.services.trip_service import TripService
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
@@ -21,6 +19,8 @@ from app.models import Bus, Trip
 from app.repositories.history import HistoryRepository
 from app.repositories.trips import TripRepository
 from app.schemas.bus import BusPatch
+from app.services.bus_service import BusService
+from app.services.trip_service import TripService
 from tests.factories import bus, make_trip
 
 

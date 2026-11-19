@@ -442,12 +442,14 @@ export type faresQuoteFareErrors = {
     /**
      * Not found
      */
-    404: unknown;
+    404: Problem;
     /**
      * Invalid request
      */
-    422: unknown;
+    422: Problem;
 };
+
+export type faresQuoteFareError = faresQuoteFareErrors[keyof faresQuoteFareErrors];
 
 export type faresQuoteFareResponses = {
     /**
@@ -496,8 +498,10 @@ export type tripsSearchTripsErrors = {
     /**
      * Invalid request
      */
-    422: unknown;
+    422: Problem;
 };
+
+export type tripsSearchTripsError = tripsSearchTripsErrors[keyof tripsSearchTripsErrors];
 
 export type tripsSearchTripsResponses = {
     /**
@@ -524,7 +528,7 @@ export type tripsGetTripErrors = {
     /**
      * Not found
      */
-    404: unknown;
+    404: Problem;
     /**
      * Validation Error
      */
@@ -561,16 +565,18 @@ export type bookingsCreateBookingErrors = {
     /**
      * Not found
      */
-    404: unknown;
+    404: Problem;
     /**
      * Conflict with the current state
      */
-    409: unknown;
+    409: Problem;
     /**
      * Invalid request
      */
-    422: unknown;
+    422: Problem;
 };
+
+export type bookingsCreateBookingError = bookingsCreateBookingErrors[keyof bookingsCreateBookingErrors];
 
 export type bookingsCreateBookingResponses = {
     /**
@@ -597,7 +603,7 @@ export type bookingsGetBookingErrors = {
     /**
      * Not found
      */
-    404: unknown;
+    404: Problem;
     /**
      * Validation Error
      */
@@ -653,8 +659,10 @@ export type adminAdminSearchTripsErrors = {
     /**
      * Invalid request
      */
-    422: unknown;
+    422: Problem;
 };
+
+export type adminAdminSearchTripsError = adminAdminSearchTripsErrors[keyof adminAdminSearchTripsErrors];
 
 export type adminAdminSearchTripsResponses = {
     /**
@@ -681,16 +689,18 @@ export type adminTransitionTripErrors = {
     /**
      * Not found
      */
-    404: unknown;
+    404: Problem;
     /**
      * Conflict with the current state
      */
-    409: unknown;
+    409: Problem;
     /**
      * Invalid request
      */
-    422: unknown;
+    422: Problem;
 };
+
+export type adminTransitionTripError = adminTransitionTripErrors[keyof adminTransitionTripErrors];
 
 export type adminTransitionTripResponses = {
     /**
@@ -717,16 +727,18 @@ export type adminAssignBusErrors = {
     /**
      * Not found
      */
-    404: unknown;
+    404: Problem;
     /**
      * Conflict with the current state
      */
-    409: unknown;
+    409: Problem;
     /**
      * Invalid request
      */
-    422: unknown;
+    422: Problem;
 };
+
+export type adminAssignBusError = adminAssignBusErrors[keyof adminAssignBusErrors];
 
 export type adminAssignBusResponses = {
     /**
@@ -782,12 +794,14 @@ export type adminCreateBusErrors = {
     /**
      * Conflict with the current state
      */
-    409: unknown;
+    409: Problem;
     /**
      * Invalid request
      */
-    422: unknown;
+    422: Problem;
 };
+
+export type adminCreateBusError = adminCreateBusErrors[keyof adminCreateBusErrors];
 
 export type adminCreateBusResponses = {
     /**
@@ -814,12 +828,14 @@ export type adminUpdateBusErrors = {
     /**
      * Not found
      */
-    404: unknown;
+    404: Problem;
     /**
      * Invalid request
      */
-    422: unknown;
+    422: Problem;
 };
+
+export type adminUpdateBusError = adminUpdateBusErrors[keyof adminUpdateBusErrors];
 
 export type adminUpdateBusResponses = {
     /**

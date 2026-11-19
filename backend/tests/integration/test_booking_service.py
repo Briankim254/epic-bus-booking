@@ -5,7 +5,6 @@ from collections.abc import Callable, Iterator
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from app.services.booking_service import BookingService
 from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -19,6 +18,7 @@ from app.domain.errors import (
 from app.domain.trip_status import TripStatus
 from app.models import Booking, Trip
 from app.schemas.booking import BookingIn
+from app.services.booking_service import BookingService
 from app.services.reconciliation import find_drift
 from tests.factories import make_trip
 

@@ -1,9 +1,9 @@
 import pytest
-from app.services.bus_service import BusService
 from sqlalchemy.orm import Session
 
 from app.domain.errors import BusNotFound, DuplicatePlate
 from app.schemas.bus import BusIn, BusPatch
+from app.services.bus_service import BusService
 
 
 def test_create_and_list(db: Session) -> None:

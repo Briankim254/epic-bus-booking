@@ -129,6 +129,26 @@ class UnhandledErrorMiddleware(BaseHTTPMiddleware):
             return await _unhandled(request, exc)
 
 
+def document_problem_responses(app: FastAPI) -> None:
+    """Errors are sent as application/problem+json only, so the OpenAPI document (and the
+    client generated from it) shouldn't also advertise them as application/json."""
+    generate = app.openapi
+
+    def openapi() -> dict[str, Any]:
+        if app.openapi_schema:
+            return app.openapi_schema
+        schema = generate()
+        for path in schema.get("paths", {}).values():
+            for operation in path.values():
+                for response in operation.get("responses", {}).values():
+                    content = response.get("content", {})
+                    if PROBLEM_MEDIA_TYPE in content:
+                        content.pop("application/json", None)
+        return schema
+
+    app.openapi = openapi  # type: ignore[method-assign]
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(StarletteHTTPException, _http_exception)
     app.add_exception_handler(RequestValidationError, _validation_error)

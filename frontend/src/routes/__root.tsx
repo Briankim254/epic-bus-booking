@@ -30,6 +30,9 @@ export const Route = createRootRoute({
       <main className="mx-auto max-w-5xl px-4 py-6">
         <Outlet />
       </main>
+      <footer className="text-muted-foreground mx-auto max-w-5xl px-4 pb-8 text-xs">
+        All times are Lagos time (WAT, UTC+1). Prices in US dollars.
+      </footer>
       {import.meta.env.DEV && (
         <>
           <TanStackRouterDevtools position="bottom-right" />

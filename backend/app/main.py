@@ -4,7 +4,11 @@ from starlette.middleware.cors import CORSMiddleware
 
 from app.api.main import api_router
 from app.core.config import settings
-from app.core.errors import UnhandledErrorMiddleware, register_exception_handlers
+from app.core.errors import (
+    UnhandledErrorMiddleware,
+    document_problem_responses,
+    register_exception_handlers,
+)
 from app.core.logging import REQUEST_ID_HEADER, RequestIdMiddleware, configure_logging
 
 OPENAPI_TAGS = [
@@ -48,6 +52,7 @@ def create_app() -> FastAPI:
     app.add_middleware(RequestIdMiddleware)
     register_exception_handlers(app)
     app.include_router(api_router, prefix=settings.API_V1_STR)
+    document_problem_responses(app)
     return app
 
 
