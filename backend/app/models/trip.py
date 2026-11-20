@@ -1,13 +1,14 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, Enum, ForeignKey, Index, func
+from sqlalchemy import CheckConstraint, DateTime, Enum, ForeignKey, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.domain.trip_status import TripStatus
 from app.models.base import Base
 from app.models.bus import Bus
 from app.models.geography import Town
+from app.models.mixins import TimestampMixin
 
 # Shared with trip_status_history: a non-native enum (varchar + CHECK, no Postgres ENUM),
 # so adding a status is a one-constraint migration.
@@ -21,7 +22,7 @@ TRIP_STATUS_TYPE = Enum(
 )
 
 
-class Trip(Base):
+class Trip(TimestampMixin, Base):
     __tablename__ = "trips"
     __table_args__ = (
         CheckConstraint("origin_town_id <> destination_town_id", name="distinct_towns"),
@@ -51,12 +52,6 @@ class Trip(Base):
         TRIP_STATUS_TYPE,
         server_default=TripStatus.SCHEDULED.value,
         default=TripStatus.SCHEDULED,
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
     origin: Mapped[Town] = relationship(foreign_keys=[origin_town_id])

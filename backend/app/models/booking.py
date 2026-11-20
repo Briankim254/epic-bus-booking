@@ -1,13 +1,13 @@
 import uuid
-from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, String, func
+from sqlalchemy import CheckConstraint, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
+from app.models.mixins import CreatedAtMixin
 
 
-class Booking(Base):
+class Booking(CreatedAtMixin, Base):
     """A row exists only for a confirmed booking. The fare is snapshotted at booking time."""
 
     __tablename__ = "bookings"
@@ -26,6 +26,3 @@ class Booking(Base):
     seats: Mapped[int]
     fare_cents_per_seat: Mapped[int]
     total_cents: Mapped[int]
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )

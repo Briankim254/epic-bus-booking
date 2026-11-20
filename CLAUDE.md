@@ -39,6 +39,7 @@ bash scripts/generate-client.sh                # regenerate frontend/src/client
 - `trips.seats_booked` changes **only** through the conditional `UPDATE` in `repositories/trips.py`. Never read it and then write it back. The `ck_trips_seats_range` CHECK is the backstop.
 - Trip status rules live only in `domain/trip_status.py`. Nothing else compares statuses.
 - Money is in integer US cents.
+- Timestamps come from `models/mixins.py`: mutable models inherit `TimestampMixin`, insert-only ones `CreatedAtMixin`. Never set `updated_at` by hand, except in `ON CONFLICT DO UPDATE` upserts, where `onupdate` doesn't fire.
 - Every error response is `application/problem+json`. Never echo the submitted input back.
 - Never log passenger names, full booking references or request bodies.
 - Regenerate the frontend client in the same change as any API schema change.

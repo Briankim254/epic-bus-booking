@@ -209,6 +209,7 @@ def insert_buses(session: Session, *, overwrite: bool) -> None:
                 "name": buses.excluded.name,
                 "capacity": buses.excluded.capacity,
                 "active": buses.excluded.active,
+                # onupdate does not fire for ON CONFLICT DO UPDATE (models/mixins.py).
                 "updated_at": func.now(),
             },
         )

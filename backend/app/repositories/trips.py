@@ -128,7 +128,7 @@ class TripRepository:
                 Trip.departs_at > now,
                 Trip.seats_booked + seats <= Trip.capacity,
             )
-            .values(seats_booked=Trip.seats_booked + seats, updated_at=func.now())
+            .values(seats_booked=Trip.seats_booked + seats)
             .returning(Trip.id)
             .execution_options(synchronize_session=False)
         )
@@ -141,7 +141,7 @@ class TripRepository:
         stmt = (
             update(Trip)
             .where(Trip.id == trip_id, Trip.status == current)
-            .values(status=target, updated_at=func.now())
+            .values(status=target)
             .returning(Trip.id)
             .execution_options(synchronize_session=False)
         )
@@ -157,7 +157,7 @@ class TripRepository:
                 Trip.status.in_(REASSIGNABLE),
                 Trip.seats_booked <= capacity,
             )
-            .values(bus_id=bus_id, capacity=capacity, updated_at=func.now())
+            .values(bus_id=bus_id, capacity=capacity)
             .returning(Trip.id)
             .execution_options(synchronize_session=False)
         )

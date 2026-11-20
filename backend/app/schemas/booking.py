@@ -21,6 +21,8 @@ def _clean_name(value: str) -> str:
         raise ValueError(f"must be at most {NAME_MAX} characters")
     if any(unicodedata.category(ch).startswith("C") for ch in value):
         raise ValueError("must not contain control characters")
+    if any(unicodedata.category(ch).startswith("S") for ch in value):
+        raise ValueError("must not contain Symbols or emojis")
     return value
 
 
