@@ -2,17 +2,23 @@
 
 import argparse
 import sys
+from datetime import date
 
 from app.core.db import SessionLocal
 from app.core.logging import configure_logging
 
 
 def seed(args: argparse.Namespace) -> int:
+    from app.seed import anchored_now
     from app.seed import seed as run_seed
 
+    now = anchored_now(args.today) if args.today else None
     with SessionLocal() as session:
-        run_seed(session, reset=args.reset)
-    print("seed: ok" + (" (reset)" if args.reset else ""))
+        run_seed(session, reset=args.reset, now=now)
+    note = " (reset)" if args.reset else ""
+    if args.today:
+        note += f" for {args.today.isoformat()}"
+    print(f"seed: ok{note}")
     return 0
 
 
@@ -50,6 +56,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     p_seed.add_argument(
         "--reset", action="store_true", help="wipe trips and bookings first"
+    )
+    p_seed.add_argument(
+        "--today",
+        type=date.fromisoformat,
+        metavar="YYYY-MM-DD",
+        help="build trips around this Lagos day (10:00) instead of now, e.g. a demo day",
     )
     p_seed.set_defaults(func=seed)
     sub.add_parser(

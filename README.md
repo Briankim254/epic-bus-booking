@@ -4,7 +4,7 @@ A prototype intercity bus booking service for six Nigerian towns in four fare zo
 
 ## Provenance
 
-This is a new monorepo. It is **not** a fork. Some configuration and the shadcn/ui components were adapted from [full-stack-fastapi-template](https://github.com/fastapi/full-stack-fastapi-template) at commit `77e550a`. [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) lists every file taken from it, along with its MIT licence. Auth, users, email, Traefik, Sentry and the template's deployment setup were left out.
+This is a new monorepo. It is **not** a fork. Some configuration and the shadcn/ui components were adapted from [full-stack-fastapi-template](https://github.com/fastapi/full-stack-fastapi-template) at commit `77e550a`.
 
 ## Quick start
 
@@ -36,6 +36,10 @@ Trips and bookings are only inserted when the `trips` table is empty, so restart
 ```bash
 # Reseed trips and bookings and restore the seed buses, keeping the database
 docker compose exec backend python -m app.cli seed --reset
+
+# Seed for a specific day, e.g. the night before a demo: trips are built around
+# 10:00 Lagos time on that day instead of now
+docker compose exec backend python -m app.cli seed --reset --today 2026-11-24
 
 # Full reset: drop the database volume, then migrate and seed from scratch
 docker compose down -v && docker compose up -d --build

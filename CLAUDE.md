@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Guide for AI coding assistants working in this repo. The full build plan is in [docs/PLAN.md](docs/PLAN.md).
+Guide for AI coding assistants working in this repo.
 
 ## Layout
 

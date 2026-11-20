@@ -9,6 +9,9 @@ Run with `python -m app.cli seed` (prestart does this on every start).
 - Trips and bookings are inserted only when `trips` is empty. Pass `--reset` to wipe and
   re-create them.
 - Departure times are relative to now, so there are always future trips to search.
+  `--today YYYY-MM-DD` pins "now" to 10:00 Lagos time on that day instead, so data seeded
+  ahead of a demo looks right on the day: one trip on the road that morning, one arrived
+  the day before, and scheduled trips over the next three days.
 - Bookings go through BookingService, the same code path as the API, with its clock set
   three days back so trips that have since departed can still take them. Trips are then
   advanced through TripService, so the state machine and history are exercised too.
@@ -17,7 +20,7 @@ Run with `python -m app.cli seed` (prestart does this on every start).
 
 import logging
 from dataclasses import dataclass
-from datetime import UTC, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import func, select, text
@@ -116,6 +119,14 @@ BOOKINGS = [
     ("abj-enu", "Ifeoma O'Neil-Okeke", 2),
     ("abj-enu", "Yakubu Garba", 6),
 ]
+
+
+DEMO_CLOCK_TIME = time(10, 0)  # Lagos time the --today anchor stands for
+
+
+def anchored_now(day: date) -> datetime:
+    """10:00 Lagos time on `day`, as UTC: the "now" a seed for that day is built around."""
+    return datetime.combine(day, DEMO_CLOCK_TIME, LAGOS).astimezone(UTC)
 
 
 def seed(session: Session, *, reset: bool = False, now: datetime | None = None) -> None:

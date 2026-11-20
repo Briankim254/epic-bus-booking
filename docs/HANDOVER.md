@@ -4,7 +4,7 @@ The three most important things to know before changing this code.
 
 ## 1. Seat counts change in one place
 
-_The conditional `UPDATE` in `repositories/trips.py`, backed by the `ck_trips_seats_range` CHECK. Run `python -m app.cli reconcile` if in doubt: any drift is a bug._
+The conditional `UPDATE` in `repositories/trips.py`, backed by the `ck_trips_seats_range` CHECK. Run `python -m app.cli reconcile` if in doubt: any drift is a bug._
 
 ## 2. Business rules live in `domain/` and are pure
 
